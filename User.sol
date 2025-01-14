@@ -2,26 +2,23 @@
 
 pragma solidity >=0.7.0 <0.9.0;
 
-contract Patient{
-
+contract Patient {
     address public owner;
 
     bytes publicKey;
-    bytes privateKey;
 
-    struct request{
-        address doctor_id;
-        bytes32 doctor_name;
-        bytes32 file_name;
-        bool approve;
+    struct Request {
+        address doctorId;
+        bytes32 doctorName;
+        bytes32 fileName;
+        bool approved;
     }
-    
-    mapping(bytes32 => bytes) files;
-    bytes32[] file_names;
-    
-    mapping(bytes32 => request[]) requests;
 
-    constructor(){
+    mapping(bytes32 => bytes) private files; // Made private for added security
+    bytes32[] private fileNames;            // Private access control for file list
+    mapping(bytes32 => Request[]) private requests;
+
+    constructor() {
         owner = msg.sender;
     }
 
@@ -30,59 +27,56 @@ contract Patient{
         _;
     }
 
-    function addData(bytes32 file_name, bytes memory ipfsaddress) public onlyOwner{
-        file_names.push(file_name);   
-        files[file_name] = ipfsaddress;     
-       
+    function addData(bytes32 fileName, bytes memory ipfsAddress) public onlyOwner {
+        fileNames.push(fileName);
+        files[fileName] = ipfsAddress;
     }
 
-    function addKeys(bytes memory pk, bytes memory pr) public {
+    function setPublicKey(bytes memory pk) public onlyOwner {
         publicKey = pk;
-        privateKey = pr;
     }
 
-    function getPublicKey() view public returns (bytes memory){
+    function getPublicKey() public view returns (bytes memory) {
         return publicKey;
     }
 
-    function getPrivateKey() view public onlyOwner returns (bytes memory) {
-        return privateKey;
+    function getFileNames() public view onlyOwner returns (bytes32[] memory) {
+        return fileNames;
     }
 
-    function getFileNames() public view returns (bytes32[] memory){
-        return file_names;
+    function getFileHash(bytes32 fileName) public view onlyOwner returns (bytes memory) {
+        return files[fileName];
     }
 
-    function getFileHash(bytes32 fname) view public returns (bytes memory){
-        return files[fname];
+    function changeFileHash(bytes32 fileName, bytes memory fileHash) public onlyOwner {
+        files[fileName] = fileHash;
     }
 
-    function changeFileHash(bytes32 fname, bytes memory fileHash) public{
-        files[fname] = fileHash;        
+    function sendRequest(
+        address doctorId,
+        bytes32 fileName,
+        bytes32 doctorName,
+        bytes32 doctorEmail
+    ) public {
+        Request memory r;
+        r.doctorId = doctorId;
+        r.fileName = fileName;
+        r.doctorName = doctorName;
+        r.approved = false;
+        requests[doctorEmail].push(r);
     }
 
-    function sendRequest(address doctor_id, bytes32 file_name, bytes32 doctor_name, bytes32 doctor_email) public{
-        request memory r;
-        r.doctor_id = doctor_id;
-        r.file_name = file_name;
-        r.doctor_name = doctor_name;
-        r.approve = false;
-        request[] storage re = requests[doctor_email];
-        re.push(r);
+    function getRequests(bytes32 doctorEmail) public view returns (Request[] memory) {
+        return requests[doctorEmail];
     }
 
-    function getRequests(bytes32 d_email) public view returns (request[] memory){
-        return requests[d_email];
-    }
-
-    function approveRequest(bytes32 d_email, bytes32 file_name) public onlyOwner{
-        request[] storage re = requests[d_email];
-        for(uint i = 0; i < re.length; i++){
-            if(re[i].file_name == file_name){
-                re[i].approve = true;
+    function approveRequest(bytes32 doctorEmail, bytes32 fileName) public onlyOwner {
+        Request[] storage re = requests[doctorEmail];
+        for (uint256 i = 0; i < re.length; i++) {
+            if (re[i].fileName == fileName) {
+                re[i].approved = true;
                 break;
             }
         }
     }
-
 }
